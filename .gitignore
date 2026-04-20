@@ -1,0 +1,56 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ===== Virtual environments =====
+venv/
+env/
+ENV/
+.venv/
+
+# ===== IDE / Editor =====
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ===== Claude Code =====
+.claude/
+
+# ===== 專案輸出 =====
+output/
+uploads_*/
+
+# ===== 資料檔案（內部資料，不上傳）=====
+模組一特殊路線.xlsx
+模組二特殊店.xlsx
+模組四台北.xlsx
+模組四基隆.xlsx
+模組四宜蘭.xlsx
+模組四新北.xlsx
+模組四新竹.xlsx
+模組四桃園.xlsx
+模組四苗栗.xlsx
+模組四花蓮.xlsx
+*.xlsx
+!範例資料*.xlsx

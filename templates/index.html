@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>主線車輛規劃系統</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Microsoft JhengHei", "微軟正黑體", sans-serif;
+      background: #f0f4f8;
+      color: #2d3748;
+      min-height: 100vh;
+    }
+    .header {
+      background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
+      color: white;
+      padding: 24px 32px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .header h1 { font-size: 22px; font-weight: 700; }
+    .header p  { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    .container { max-width: 980px; margin: 32px auto; padding: 0 20px; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #ebf4ff;
+      color: #1a365d;
+    }
+
+    /* ── 路線模式切換 ── */
+    .mode-toggle {
+      display: flex;
+      gap: 0;
+      border: 2px solid #4299e1;
+      border-radius: 10px;
+      overflow: hidden;
+      width: fit-content;
+    }
+    .mode-btn {
+      padding: 10px 28px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: white;
+      color: #4299e1;
+      transition: background 0.18s, color 0.18s;
+    }
+    .mode-btn.active {
+      background: #4299e1;
+      color: white;
+    }
+    .mode-desc {
+      font-size: 12.5px;
+      color: #718096;
+      margin-top: 10px;
+      padding: 10px 14px;
+      background: #f7fafc;
+      border-radius: 8px;
+      line-height: 1.7;
+    }
+    .mode-desc strong { color: #2b6cb0; }
+
+    /* ── 裝載率 ── */
+    .load-rate-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .load-rate-label { font-size: 14px; font-weight: 600; white-space: nowrap; }
+    .load-rate-presets { display: flex; gap: 8px; flex-wrap: wrap; }
+    .preset-btn {
+      padding: 6px 14px;
+      border: 2px solid #cbd5e0;
+      border-radius: 7px;
+      background: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: #4a5568;
+    }
+    .preset-btn:hover { border-color: #4299e1; color: #4299e1; }
+    .preset-btn.active { border-color: #4299e1; background: #ebf8ff; color: #2b6cb0; }
+    .load-custom-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .load-custom-wrap input {
+      width: 70px;
+      padding: 6px 10px;
+      border: 2px solid #cbd5e0;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+      color: #2b6cb0;
+    }
+    .load-custom-wrap input:focus {
+      outline: none;
+      border-color: #4299e1;
+    }
+    .capacity-preview {
+      margin-top: 12px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .cap-box {
+      background: #ebf8ff;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      color: #2b6cb0;
+    }
+    .cap-box strong { font-size: 16px; }
+
+    /* ── Upload area ── */
+    .modules { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .module-m4 { grid-column: 1 / -1; }
+    .module-box {
+      border: 2px dashed #cbd5e0;
+      border-radius: 10px;
+      padding: 16px;
+      transition: border-color 0.2s;
+    }
+    .module-box:hover { border-color: #4299e1; }
+    .module-box.has-file { border-color: #48bb78; border-style: solid; background: #f0fff4; }
+    .module-label {
+      font-size: 13px; font-weight: 700;
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .badge {
+      display: inline-block; padding: 2px 8px;
+      border-radius: 99px; font-size: 11px; font-weight: 600;
+    }
+    .badge-m1 { background: #fef3c7; color: #92400e; }
+    .badge-m2 { background: #fee2e2; color: #991b1b; }
+    .badge-m4 { background: #dbeafe; color: #1e40af; }
+    .file-input-wrap { position: relative; }
+    .file-input-wrap input[type=file] {
+      position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer;
+    }
+    .file-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 14px; background: #edf2f7;
+      border-radius: 7px; font-size: 13px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .file-btn:hover { background: #e2e8f0; }
+    .file-name { font-size: 12px; color: #718096; margin-top: 6px; min-height: 16px; }
+    .file-name.ok { color: #276749; font-weight: 600; }
+    .m4-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    @media (max-width: 700px) { .m4-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    /* ── Run button ── */
+    .run-btn {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #2b6cb0, #4299e1);
+      color: white; border: none; border-radius: 10px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .run-btn:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Progress ── */
+    #progress-area { display: none; }
+    .progress-bar-wrap {
+      background: #e2e8f0; border-radius: 99px; height: 10px;
+      overflow: hidden; margin: 12px 0;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #4299e1, #48bb78);
+      border-radius: 99px; transition: width 0.4s ease; width: 0%;
+    }
+    .progress-bar.indeterminate { animation: indeterminate 1.5s infinite; width: 40%; }
+    @keyframes indeterminate { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+    .log-box {
+      background: #1a202c; color: #a0f0a0;
+      border-radius: 8px; padding: 14px;
+      font-family: "Consolas", monospace; font-size: 12.5px;
+      height: 200px; overflow-y: auto; line-height: 1.7;
+    }
+    .log-box .log-warn { color: #fbd38d; }
+    .log-box .log-ok   { color: #68d391; }
+    .log-box .log-err  { color: #fc8181; }
+    .log-box .log-info { color: #90cdf4; }
+
+    /* ── Result ── */
+    #result-area { display: none; }
+    .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+    .stat-box { background: #f7fafc; border-radius: 8px; padding: 14px; text-align: center; }
+    .stat-value { font-size: 22px; font-weight: 800; color: #2b6cb0; }
+    .stat-label { font-size: 11px; color: #718096; margin-top: 2px; }
+    .download-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #276749, #48bb78);
+      color: white; border-radius: 10px; font-size: 15px; font-weight: 700;
+      text-decoration: none; transition: opacity 0.2s;
+    }
+    .download-btn:hover { opacity: 0.9; }
+    .warning-note {
+      background: #fffbeb; border-left: 4px solid #f59e0b;
+      padding: 10px 14px; border-radius: 0 8px 8px 0;
+      font-size: 13px; margin-top: 12px;
+    }
+    .status-row { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 8px; }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 3px solid #e2e8f0; border-top-color: #4299e1;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🚛 主線車輛規劃系統</h1>
+  <p>大溪倉主線車輛規劃 ｜ 模組一 / 模組二 / 模組四</p>
+</div>
+
+<div class="container">
+
+  <!-- ① 路線模式 -->
+  <div class="card">
+    <div class="card-title">🗺️ 路線編排模式</div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn-loop" onclick="setMode('loop')">🔁 迴圈模式</button>
+      <button class="mode-btn"        id="btn-ring" onclick="setMode('ring')">⭕ 同心圓模式</button>
+    </div>
+    <div class="mode-desc" id="mode-desc">
+      <strong>迴圈模式</strong>：以 Nearest Neighbor + 2-opt TSP 算法，從倉庫出發規劃最短回程路線，適合一般配送效率最大化。
+    </div>
+  </div>
+
+  <!-- ② 裝載率 -->
+  <div class="card">
+    <div class="card-title">📦 裝載率上限設定</div>
+    <div class="load-rate-row">
+      <span class="load-rate-label">裝載率：</span>
+      <div class="load-rate-presets">
+        <button class="preset-btn" onclick="setLoadRate(80)">80%</button>
+        <button class="preset-btn" onclick="setLoadRate(85)">85%</button>
+        <button class="preset-btn active" onclick="setLoadRate(90)">90%</button>
+        <button class="preset-btn" onclick="setLoadRate(95)">95%</button>
+        <button class="preset-btn" onclick="setLoadRate(100)">100%</button>
+      </div>
+      <div class="load-custom-wrap">
+        <span style="font-size:13px;color:#718096">自訂：</span>
+        <input type="number" id="load-rate-input" value="90" min="50" max="100"
+               oninput="onCustomLoadRate(this.value)">
+        <span style="font-size:13px;color:#718096">%</span>
+      </div>
+    </div>
+    <div class="capacity-preview">
+      <div class="cap-box">5噸車有效容量：<strong id="cap5">144</strong> 箱 <span style="color:#718096;font-size:11px">（上限 160）</span></div>
+      <div class="cap-box">8噸車有效容量：<strong id="cap8">216</strong> 箱 <span style="color:#718096;font-size:11px">（上限 240）</span></div>
+    </div>
+  </div>
+
+  <!-- ③ 上傳資料 -->
+  <div class="card">
+    <div class="card-title">📂 上傳門市資料（Excel 檔案）</div>
+    <div class="modules">
+
+      <div class="module-box" id="box-m1">
+        <div class="module-label">
+          <span class="badge badge-m1">🌞 模組一</span> 非24小時特殊路線
+        </div>
+        <div class="file-input-wrap">
+          <input type="file" accept=".xlsx" id="file-m1" onchange="handleFile(this,'m1')">
+          <div class="file-btn">📎 選擇 Excel 檔案</div>
+        </div>
+        <div class="file-name" id="name-m1">尚未選擇</div>
+      </div>
+
+      <div class="module-box" id="box-m2">
+        <div class="module-label">
+          <span class="badge badge-m2">⚠️ 模組二</span> 特定店舖配送
+        </div>
+        <div class="file-input-wrap">
+          <input type="file" accept=".xlsx" id="file-m2" onchange="handleFile(this,'m2')">
+          <div class="file-btn">📎 選擇 Excel 檔案</div>
+        </div>
+        <div class="file-name" id="name-m2">尚未選擇</div>
+      </div>
+
+      <div class="module-box module-m4" id="box-m4">
+        <div class="module-label">
+          <span class="badge badge-m4">✅ 模組四</span> 一般店舖配送（各縣市）
+        </div>
+        <div class="m4-grid">
+          <div>
+            <div style="font-size:12px;color:#718096;margin-bottom:4px">台北市</div>
+            <div class="file-input-wrap">
+              <input type="file" accept=".xlsx" id="file-m4-taipei" onchange="handleFile(this,'m4-taipei')">
+              <div class="file-btn">📎 選擇</div>
+            </div>
+            <div class="file-name" id="name-m4-taipei">尚未選擇</div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:#718096;margin-bottom:4px">新北市</div>
+            <div class="file-input-wrap">
+              <input type="file" accept=".xlsx" id="file-m4-newtaipei" onchange="handleFile(this,'m4-newtaipei')">
+              <div class="file-btn">📎 選擇</div>
+            </div>
+            <div class="file-name" id="name-m4-newtaipei">尚未選擇</div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:#718096;margin-bottom:4px">基隆市</div>
+            <div class="file-input-wrap">
+              <input type="file" accept=".xlsx" id="file-m4-keelung" onchange="handleFile(this,'m4-keelung')">
+              <div class="file-btn">📎 選擇</div>
+            </div>
+            <div class="file-name" id="name-m4-keelung">尚未選擇</div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:#718096;margin-bottom:4px">宜蘭縣</div>
+            <div class="file-input-wrap">
+              <input type="file" accept=".xlsx" id="file-m4-yilan" onchange="handleFile(this,'m4-yilan')">
+              <div class="file-btn">📎 選擇</div>
+            </div>
+            <div class="file-name" id="name-m4-yilan">尚未選擇</div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:#718096;margin-bottom:4px">新竹縣市</div>
+            <div class="file-input-wrap">
+              <input type="file" accept=".xlsx" id="file-m4-hsinchu" onchange="handleFile(this,'m4-hsinchu')">
+              <div class="file-btn">📎 選擇</div>
+            </div>
+            <div class="file-name" id="name-m4-hsinchu">尚未選擇</div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:#718096;margin-bottom:4px">桃園市</div>
+            <div class="file-input-wrap">
+              <input type="file" accept=".xlsx" id="file-m4-taoyuan" onchange="handleFile(this,'m4-taoyuan')">
+              <div class="file-btn">📎 選擇</div>
+            </div>
+            <div class="file-name" id="name-m4-taoyuan">尚未選擇</div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:#718096;margin-bottom:4px">苗栗縣</div>
+            <div class="file-input-wrap">
+              <input type="file" accept=".xlsx" id="file-m4-miaoli" onchange="handleFile(this,'m4-miaoli')">
+              <div class="file-btn">📎 選擇</div>
+            </div>
+            <div class="file-name" id="name-m4-miaoli">尚未選擇</div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:#718096;margin-bottom:4px">花蓮縣（選填）</div>
+            <div class="file-input-wrap">
+              <input type="file" accept=".xlsx" id="file-m4-hualien" onchange="handleFile(this,'m4-hualien')">
+              <div class="file-btn">📎 選擇</div>
+            </div>
+            <div class="file-name" id="name-m4-hualien">尚未選擇</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ 執行 -->
+  <div class="card">
+    <button class="run-btn" id="run-btn" onclick="runPlanning()">
+      🚀 開始規劃路線
+    </button>
+  </div>
+
+  <!-- ⑤ 進度 -->
+  <div class="card" id="progress-area">
+    <div class="card-title">⏳ 執行進度</div>
+    <div class="status-row">
+      <div class="spinner" id="spinner"></div>
+      <span id="status-text">初始化中...</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar indeterminate" id="progress-bar"></div>
+    </div>
+    <div class="log-box" id="log-box"></div>
+  </div>
+
+  <!-- ⑥ 結果 -->
+  <div class="card" id="result-area">
+    <div class="card-title">✅ 規劃完成</div>
+    <div class="result-grid" id="stats-grid"></div>
+    <a class="download-btn" id="download-link" href="#" download>
+      ⬇️ 下載路線規劃報表（Excel）
+    </a>
+    <div class="warning-note" id="warning-note" style="display:none"></div>
+  </div>
+
+</div>
+
+<script>
+// ── 狀態 ──
+const files = {};
+let currentMode = 'loop';
+let currentLoadRate = 90;
+
+// ── 模式切換 ──
+const modeDescs = {
+  loop: '<strong>迴圈模式</strong>：以 Nearest Neighbor + 2-opt TSP 算法，從倉庫出發規劃最短回程路線，適合一般配送效率最大化。',
+  ring: '<strong>同心圓模式</strong>：以倉庫為圓心，按距離環帶（每 15~20km 一環）分組。<br>• <strong>70% 行政區配送</strong>：同一行政區門市優先組成路線主幹<br>• <strong>30% 同心圓補充</strong>：依方位角順時針補入鄰近環帶門市<br>路線排序採圓掃（依角度順時針），適合地理分佈均勻的配送場景。'
+};
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('btn-loop').className = 'mode-btn' + (mode === 'loop' ? ' active' : '');
+  document.getElementById('btn-ring').className = 'mode-btn' + (mode === 'ring' ? ' active' : '');
+  document.getElementById('mode-desc').innerHTML = modeDescs[mode];
+}
+
+// ── 裝載率 ──
+function setLoadRate(rate) {
+  currentLoadRate = rate;
+  document.getElementById('load-rate-input').value = rate;
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    b.className = 'preset-btn' + (b.textContent === rate + '%' ? ' active' : '');
+  });
+  updateCapacity();
+}
+
+function onCustomLoadRate(val) {
+  const rate = Math.max(50, Math.min(100, parseInt(val) || 90));
+  currentLoadRate = rate;
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    b.className = 'preset-btn' + (b.textContent === rate + '%' ? ' active' : '');
+  });
+  updateCapacity();
+}
+
+function updateCapacity() {
+  const r = currentLoadRate / 100;
+  document.getElementById('cap5').textContent = Math.floor(160 * r);
+  document.getElementById('cap8').textContent = Math.floor(240 * r);
+}
+
+// ── 檔案上傳 ──
+function handleFile(input, key) {
+  const f = input.files[0];
+  const nameEl = document.getElementById('name-' + key);
+  if (f) {
+    files[key] = f;
+    nameEl.textContent = '✅ ' + f.name;
+    nameEl.className = 'file-name ok';
+  } else {
+    delete files[key];
+    nameEl.textContent = '尚未選擇';
+    nameEl.className = 'file-name';
+  }
+}
+
+// ── Log ──
+function log(msg, type='') {
+  const box = document.getElementById('log-box');
+  const line = document.createElement('div');
+  line.className = type ? 'log-' + type : '';
+  line.textContent = msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ── 執行規劃 ──
+async function runPlanning() {
+  if (Object.keys(files).length === 0) {
+    alert('請至少上傳一個 Excel 檔案！');
+    return;
+  }
+
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('progress-area').style.display = 'block';
+  document.getElementById('result-area').style.display = 'none';
+  document.getElementById('log-box').innerHTML = '';
+  document.getElementById('status-text').textContent = '上傳資料中...';
+  document.getElementById('spinner').style.display = '';
+
+  const bar = document.getElementById('progress-bar');
+  bar.className = 'progress-bar indeterminate';
+
+  const modeLabel = currentMode === 'loop' ? '迴圈模式' : '同心圓模式';
+  log(`⚙️ 路線模式：${modeLabel}　裝載率：${currentLoadRate}%`, 'info');
+
+  const form = new FormData();
+  for (const [key, file] of Object.entries(files)) {
+    form.append(key, file, file.name);
+  }
+  form.append('route_mode', currentMode);
+  form.append('load_rate', currentLoadRate);
+
+  try {
+    const startResp = await fetch('/api/start', { method: 'POST', body: form });
+    if (!startResp.ok) {
+      const err = await startResp.json();
+      log('❌ 錯誤：' + (err.error || '未知錯誤'), 'err');
+      return;
+    }
+    const { job_id } = await startResp.json();
+    log('✅ 已開始規劃（工作 ID: ' + job_id + '）', 'ok');
+    document.getElementById('status-text').textContent = '規劃路線中，請稍候...';
+    await pollStatus(job_id);
+  } catch (e) {
+    log('❌ 連線錯誤：' + e.message, 'err');
+    document.getElementById('status-text').textContent = '發生錯誤';
+  } finally {
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('spinner').style.display = 'none';
+    bar.classList.remove('indeterminate');
+    bar.style.width = '100%';
+  }
+}
+
+async function pollStatus(job_id) {
+  let dots = 0;
+  while (true) {
+    await sleep(2000);
+    const resp = await fetch('/api/status/' + job_id);
+    const data = await resp.json();
+    if (data.logs && data.logs.length > 0) {
+      for (const line of data.logs) {
+        const type = line.includes('❌') || line.includes('錯誤') ? 'err'
+                   : line.includes('⚠️') ? 'warn'
+                   : line.includes('✅') || line.includes('完成') || line.includes('🎉') ? 'ok'
+                   : line.includes('⚙️') || line.includes('⚡') ? 'info'
+                   : '';
+        log(line, type);
+      }
+    }
+    if (data.status === 'done') {
+      document.getElementById('status-text').textContent = '規劃完成！';
+      showResult(data.result, job_id);
+      return;
+    } else if (data.status === 'error') {
+      log('❌ ' + data.error, 'err');
+      document.getElementById('status-text').textContent = '規劃失敗';
+      return;
+    }
+    dots = (dots + 1) % 4;
+    document.getElementById('status-text').textContent = '規劃路線中' + '.'.repeat(dots + 1);
+  }
+}
+
+function showResult(result, job_id) {
+  document.getElementById('result-area').style.display = 'block';
+  const stats = [
+    { label: '總路線數',    value: result.total_routes + ' 條' },
+    { label: '總門市數',    value: result.total_stores + ' 間' },
+    { label: '總箱數',      value: result.total_boxes  + ' 箱' },
+    { label: '總里程',      value: result.total_km     + ' km' },
+    { label: '5噸車使用',   value: result.used_5ton + '/' + result.total_5ton + ' 台' },
+    { label: '8噸車使用',   value: result.used_8ton + '/' + result.total_8ton + ' 台' },
+  ];
+  document.getElementById('stats-grid').innerHTML =
+    stats.map(s => `<div class="stat-box"><div class="stat-value">${s.value}</div><div class="stat-label">${s.label}</div></div>`).join('');
+  document.getElementById('download-link').href = '/api/download/' + job_id;
+  document.getElementById('download-link').download = '路線規劃報告.xlsx';
+  if (result.warnings > 0) {
+    const note = document.getElementById('warning-note');
+    note.style.display = 'block';
+    note.textContent = `⚠️ 共有 ${result.warnings} 個警告事項，請開啟報表查看「規劃備註」工作表。`;
+  }
+  document.getElementById('result-area').scrollIntoView({ behavior: 'smooth' });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
